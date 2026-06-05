@@ -6,16 +6,6 @@
 
 打开 `index.html`，按页面提示填写学历、学校、专业、成绩、荣誉、竞赛、单位情况等信息，页面会自动计算模拟总分，并判断是否达到 72 分或命中明确的直接落户通道。
 
-## 发布到 GitHub Pages
-
-1. 新建一个 GitHub 仓库。
-2. 上传本目录下的 `index.html` 和 `README.md`。
-3. 打开仓库的 `Settings`。
-4. 进入 `Pages`。
-5. 在 `Build and deployment` 中选择 `Deploy from a branch`。
-6. Branch 选择 `main`，目录选择 `/root`，保存。
-7. 等待 GitHub 生成访问地址。
-
 ## 说明
 
 - 本工具仅用于政策参考和模拟测算，不替代官方审核结论。
