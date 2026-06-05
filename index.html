@@ -199,6 +199,16 @@
       min-width: 0;
     }
 
+    .autocomplete {
+      position: relative;
+      min-width: 0;
+      z-index: 1;
+    }
+
+    .autocomplete.is-open {
+      z-index: 30;
+    }
+
     .field.full {
       grid-column: 1 / -1;
     }
@@ -228,6 +238,49 @@
     select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+
+    .suggestions {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 5px);
+      z-index: 40;
+      display: none;
+      max-height: min(320px, 44vh);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 34px rgba(23, 32, 42, 0.18);
+    }
+
+    .suggestions.open {
+      display: block;
+    }
+
+    .suggestion {
+      width: 100%;
+      min-height: 42px;
+      border: 0;
+      border-bottom: 1px solid #edf1ee;
+      border-radius: 0;
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .suggestion:last-child {
+      border-bottom: 0;
+    }
+
+    .suggestion:hover,
+    .suggestion.is-active {
+      background: var(--surface-2);
     }
 
     .checks {
@@ -525,6 +578,13 @@
         overflow: visible;
         padding-right: 0;
       }
+
+      .suggestions {
+        position: static;
+        max-height: 240px;
+        margin-top: 5px;
+        box-shadow: 0 10px 24px rgba(23, 32, 42, 0.14);
+      }
     }
   </style>
 </head>
@@ -581,13 +641,17 @@
             </div>
             <div class="field">
               <label for="schoolInput">最高学历学校或培养单位</label>
-              <input id="schoolInput" name="schoolInput" type="text" list="schoolList" placeholder="输入学校名称或代码">
-              <datalist id="schoolList"></datalist>
+              <div class="autocomplete" data-autocomplete="school">
+                <input id="schoolInput" name="schoolInput" type="text" placeholder="输入学校名称或代码" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="schoolSuggestions">
+                <div id="schoolSuggestions" class="suggestions" role="listbox"></div>
+              </div>
             </div>
             <div class="field full">
               <label for="majorInput">学科/专业代码或名称</label>
-              <input id="majorInput" name="majorInput" type="text" list="fieldList" placeholder="输入专业名称或代码">
-              <datalist id="fieldList"></datalist>
+              <div class="autocomplete" data-autocomplete="major">
+                <input id="majorInput" name="majorInput" type="text" placeholder="输入专业名称或代码" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="fieldSuggestions">
+                <div id="fieldSuggestions" class="suggestions" role="listbox"></div>
+              </div>
               <p class="hint">用于自动识别硕士世界一流学科直通，也用于判断上海重点发展领域 6 分。</p>
             </div>
             <div class="field">
@@ -824,19 +888,99 @@
     ].filter((item) => item.code && item.name), (item) => `${item.code}|${item.name}`)
       .sort((a, b) => a.code.localeCompare(b.code, "zh-CN"));
 
-    function populateDatalist(id, items, labeler) {
-      const list = document.getElementById(id);
-      const fragment = document.createDocumentFragment();
-      items.forEach((item) => {
-        const option = document.createElement("option");
-        option.value = labeler(item);
-        fragment.appendChild(option);
+    function setupAutocomplete(inputId, panelId, items, labeler) {
+      const input = document.getElementById(inputId);
+      const panel = document.getElementById(panelId);
+      const shell = input.closest(".autocomplete");
+      let visible = [];
+      let activeIndex = -1;
+
+      function close() {
+        panel.classList.remove("open");
+        shell.classList.remove("is-open");
+        input.setAttribute("aria-expanded", "false");
+        activeIndex = -1;
+      }
+
+      function setActive(index) {
+        activeIndex = index;
+        panel.querySelectorAll(".suggestion").forEach((button, buttonIndex) => {
+          button.classList.toggle("is-active", buttonIndex === activeIndex);
+          if (buttonIndex === activeIndex) button.scrollIntoView({ block: "nearest" });
+        });
+      }
+
+      function choose(item) {
+        input.value = labeler(item);
+        close();
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      function matches(item, query) {
+        if (!query) return true;
+        return normalize(labeler(item)).includes(query)
+          || normalize(item.code).includes(query)
+          || normalize(item.name).includes(query)
+          || normalize(item.source).includes(query);
+      }
+
+      function renderSuggestions() {
+        const query = normalize(input.value);
+        visible = items.filter((item) => matches(item, query)).slice(0, 24);
+        const fragment = document.createDocumentFragment();
+        visible.forEach((item, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "suggestion";
+          button.setAttribute("role", "option");
+          button.textContent = labeler(item);
+          button.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            choose(item);
+          });
+          button.addEventListener("mouseenter", () => setActive(index));
+          fragment.appendChild(button);
+        });
+        panel.replaceChildren(fragment);
+        if (!visible.length) {
+          close();
+          return;
+        }
+        panel.classList.add("open");
+        shell.classList.add("is-open");
+        input.setAttribute("aria-expanded", "true");
+        setActive(-1);
+      }
+
+      input.addEventListener("focus", renderSuggestions);
+      input.addEventListener("input", renderSuggestions);
+      input.addEventListener("keydown", (event) => {
+        if (!panel.classList.contains("open")) {
+          if (event.key === "ArrowDown") renderSuggestions();
+          return;
+        }
+        if (event.key === "Escape") {
+          close();
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setActive(Math.min(activeIndex + 1, visible.length - 1));
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setActive(Math.max(activeIndex - 1, 0));
+        } else if (event.key === "Enter" && activeIndex >= 0) {
+          event.preventDefault();
+          choose(visible[activeIndex]);
+        }
       });
-      list.replaceChildren(fragment);
+
+      document.addEventListener("pointerdown", (event) => {
+        if (!shell.contains(event.target)) close();
+      });
     }
 
-    populateDatalist("schoolList", schoolPool, (item) => `${item.code} | ${item.name}`);
-    populateDatalist("fieldList", POLICY.keyFields, (item) => `${item.code} | ${item.name}（${item.source}）`);
+    setupAutocomplete("schoolInput", "schoolSuggestions", schoolPool, (item) => `${item.code} | ${item.name}`);
+    setupAutocomplete("majorInput", "fieldSuggestions", POLICY.keyFields, (item) => `${item.code} | ${item.name}（${item.source}）`);
 
     function findSchool(value) {
       const parsed = parseValue(value);
