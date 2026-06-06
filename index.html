@@ -687,15 +687,14 @@
             <div class="field">
               <label for="computerLevel">计算机水平</label>
               <select id="computerLevel" name="computerLevel">
-                <option value="auto">按学历自动判断</option>
                 <option value="0">无或待核验</option>
-                <option value="7">7 分：理科类高级水平或免予要求专业</option>
-                <option value="7">7 分：文科类中级或省级二级</option>
-                <option value="6">6 分：理科类中级或省级二级</option>
-                <option value="6">6 分：文科类初级或省级一级</option>
-                <option value="6">6 分：艺术类、体育类相关课程合格</option>
+                <option value="7">毕业研究生</option>
+                <option value="7">理科类高级水平或免予要求专业</option>
+                <option value="7">文科类中级或省级二级</option>
+                <option value="6">理科类中级或省级二级</option>
+                <option value="6">文科类初级或省级一级</option>
+                <option value="6">艺术类、体育类相关课程合格</option>
               </select>
-              <p class="hint">硕士/博士默认按毕业研究生 7 分；本科/专科按证书或免予要求专业选择。</p>
             </div>
           </div>
         </section>
@@ -1121,19 +1120,7 @@
       if (isShanghaiHigherEd(school)) addItem(items, "在沪学习分", 2, `${school.code} ${school.name}：最高学历阶段在上海高校就读另加 2 分`, "毕业生要素");
       addItem(items, "学习成绩", Number(value("rankLevel")), document.querySelector("#rankLevel option:checked")?.textContent || "", "毕业生要素");
       addItem(items, "外语水平", Number(value("languageLevel")), document.querySelector("#languageLevel option:checked")?.textContent || "", "毕业生要素");
-      const computerMode = value("computerLevel");
-      let computerScore = Number(computerMode) || 0;
-      let computerNote = document.querySelector("#computerLevel option:checked")?.textContent || "";
-      if (computerMode === "auto") {
-        if (degree === "master" || degree === "doctor") {
-          computerScore = 7;
-          computerNote = "毕业研究生：按计算机水平 7 分模拟";
-        } else {
-          computerNote = "本科/专科需选择对应计算机水平或免予要求专业";
-          if (degree === "bachelor" || degree === "other") notes.push({ title: "计算机水平待选择", body: "当前按学历自动判断未给本科/专科计入计算机分；如符合证书等级或免予要求专业，请手动选择。" });
-        }
-      }
-      addItem(items, "计算机水平", computerScore, computerNote, "毕业生要素");
+      addItem(items, "计算机水平", Number(value("computerLevel")), document.querySelector("#computerLevel option:checked")?.textContent || "", "毕业生要素");
 
       const schoolHonorScore = Math.min(Math.max(Number(value("schoolHonorCount")) || 0, 0), 2);
       const honorScore = Math.max(Number(value("honorLevel")) || 0, schoolHonorScore);
@@ -1292,7 +1279,7 @@
       form.elements.schoolInput.value = "10246 | 复旦大学";
       form.elements.rankLevel.value = "8";
       form.elements.languageLevel.value = "8";
-      form.elements.computerLevel.value = "auto";
+      form.elements.computerLevel.value = "7";
       form.elements.majorInput.value = "1401 | 集成电路科学与工程（研究生学科）";
       form.elements.majorProject.checked = true;
       render();
